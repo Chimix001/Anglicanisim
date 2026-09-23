@@ -1,6 +1,4 @@
-# =========================
 # IMPORT DEPENDENCIES
-# =========================
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_groq import ChatGroq
@@ -20,7 +18,7 @@ from langgraph.prebuilt import ToolNode
 import os
 import requests
 
-
+# Use a fixed book-name-to-API-ID mapping to avoid API book lookup issues
 book_map = {
         "Genesis": "GEN",
         "Exodus": "EXO",
@@ -353,28 +351,18 @@ def search_catechism(question: str):
         for doc in documents
     )
 
-
-# =========================
 # TOOLS
-# =========================
-
 tools = [
     search_bible_verse,
     explain_bible_verse,
     search_catechism
 ]
 
-
-# =========================
 # GIVE LLM ACCESS TO TOOLS
-# =========================
 
 llm_with_tools = llm.bind_tools(tools)
 
-
-# =========================
 # AGENT NODE
-# =========================
 
 def agent(state: AgentState):
 
@@ -389,9 +377,7 @@ def agent(state: AgentState):
     }
 
 
-# =========================
 # AGENT ROUTER
-# =========================
 
 def agent_router(state: AgentState):
 
@@ -403,10 +389,7 @@ def agent_router(state: AgentState):
 
     return "end"
 
-
-# =========================
 # TOPIC ROUTER
-# =========================
 
 def topic_router(state: AgentState):
 
@@ -416,10 +399,7 @@ def topic_router(state: AgentState):
 
     return "off_topic"
 
-
-# =========================
 # OFF-TOPIC RESPONSE
-# =========================
 
 def off_topic_response(state: AgentState):
 
@@ -436,119 +416,64 @@ def off_topic_response(state: AgentState):
         ]
     }
 
-
-# =========================
 # TOOL NODE
-# =========================
 
 tool_node = ToolNode(tools)
 
 
-# =========================
 # CHECKPOINTER
-# =========================
 
 checkpointer = MemorySaver()
 
 
-# =========================
 # BUILD GRAPH
-# =========================
-
 builder = StateGraph(AgentState)
 
 
 # Add nodes
-builder.add_node(
-    "classifier",
-    question_classifier
-)
+builder.add_node("classifier",question_classifier)
 
-builder.add_node(
-    "agent",
-    agent
-)
+builder.add_node("agent",agent)
 
-builder.add_node(
-    "tools",
-    tool_node
-)
+builder.add_node("tools",tool_node)
 
-builder.add_node(
-    "off_topic",
-    off_topic_response
-)
+builder.add_node("off_topic",off_topic_response)
 
-
-# =========================
 # GRAPH EDGES
-# =========================
 
 # START → CLASSIFIER
 
-builder.add_edge(
-    START,
-    "classifier"
-)
+builder.add_edge(START,"classifier")
 
 
 # CLASSIFIER → AGENT / OFF_TOPIC
 
-builder.add_conditional_edges(
-    "classifier",
-    topic_router,
-    {
-        "agent": "agent",
-        "off_topic": "off_topic"
-    }
-)
-
+builder.add_conditional_edges("classifier",topic_router,
+    {"agent": "agent","off_topic": "off_topic"})
 
 # AGENT → TOOLS / END
 
-builder.add_conditional_edges(
-    "agent",
-    agent_router,
-    {
-        "tools": "tools",
-        "end": END
-    }
-)
-
+builder.add_conditional_edges("agent",agent_router,
+    {"tools": "tools","end": END})
 
 # TOOLS → AGENT
 
-builder.add_edge(
-    "tools",
-    "agent"
-)
+builder.add_edge("tools","agent")
 
 
 # OFF_TOPIC → END
 
-builder.add_edge(
-    "off_topic",
-    END
-)
+builder.add_edge("off_topic",END)
 
-
-# =========================
 # COMPILE GRAPH
-# =========================
 
-graph = builder.compile(
-    checkpointer=checkpointer
-)
+graph = builder.compile(checkpointer=checkpointer)
 
 
-# =========================
 # TEST CHATBOT
-# =========================
-
 if __name__ == "__main__":
 
     print("\n📖 Anglican Christian AI Assistant")
-    print("-----------------------------------")
     print("Ask a question.")
     print("Type 'exit' or 'quit' to stop.")
 
